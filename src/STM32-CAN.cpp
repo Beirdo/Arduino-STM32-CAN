@@ -1,7 +1,25 @@
 #include <Arduino.h>
 #include "STM32-CAN.h"
 
-CAN_bit_timing_config_t can_configs[6] = {{2, 13, 60}, {2, 13, 30}, {2, 13, 24}, {2, 13, 12}, {2, 13, 6}, {2, 13, 3}};
+CAN_bit_timing_config_t can_configs[6] = {
+  {2, 13, 60}, 
+  {2, 13, 30}, 
+  {2, 13, 24}, 
+  {2, 13, 12}, 
+  {2, 13, 6}, 
+  {2, 13, 3}
+};
+
+CAN_filter_t default_filters[] = {
+  // Set filter 0
+  // Single 32-bit scale configuration 
+  // Two 32-bit registers of filter bank x are in Identifier Mask mode
+  // Filter assigned to FIFO 0 
+  // Filter bank register to all 0
+  {0, 1, 0, 0, 0, 0},
+};
+int default_filter_count = sizeof(default_filters) / sizeof(default_filters[0]);
+
 
 /**
  * Print registers.
@@ -79,52 +97,74 @@ void STM32_CAN::setGPIO(GPIO_TypeDef *addr, uint8_t index, uint8_t afry, uint8_t
  * Initializes the CAN filter registers.
  *
  * @preconditions   - This register can be written only when the filter initialization mode is set (FINIT=1) in the CAN_FMR register.
- * @params: index   - Specified filter index. index 27:14 are available in connectivity line devices only.
- * @params: scale   - Select filter scale.
- *                    0: Dual 16-bit scale configuration
- *                    1: Single 32-bit scale configuration
- * @params: mode    - Select filter mode.
- *                    0: Two 32-bit registers of filter bank x are in Identifier Mask mode
- *                    1: Two 32-bit registers of filter bank x are in Identifier List mode
- * @params: fifo    - Select filter assigned.
- *                    0: Filter assigned to FIFO 0
- *                    1: Filter assigned to FIFO 1
- * @params: bank1   - Filter bank register 1
- * @params: bank2   - Filter bank register 2
+ * @params: item    - CAN_filter definition for this filter
  *
  */
-void STM32_CAN::setFilter(uint8_t index, uint8_t scale, uint8_t mode, uint8_t fifo, uint32_t bank1, uint32_t bank2)
+void STM32_CAN::setFilter(CAN_filter_t &item)
 {
-  if (index > 13) {
+  if (item.index > 13) {
     return;
   }
 
-  uint32_t bit = 1 << index;
+  uint32_t bit = 1 << item.index;
 
   CAN->FA1R &= ~bit;                  // Deactivate filter
 
-  if (scale == 0) {
+  if (item.scale == 0) {
     CAN->FS1R &= ~bit;                // Set filter to Dual 16-bit scale configuration
   } else {
     CAN->FS1R |= bit;                 // Set filter to single 32 bit configuration
   }
 
-  if (mode == 0) {
+  if (item.mode == 0) {
     CAN->FM1R &= ~bit;                // Set filter to Mask mode
   } else {
     CAN->FM1R |= bit;                 // Set filter to List mode
   }
 
-  if (fifo == 0) {
+  if (item.fifo == 0) {
     CAN->FFA1R &= ~bit;               // Set filter assigned to FIFO 0
   } else {
     CAN->FFA1R |= bit;                // Set filter assigned to FIFO 1
   }
 
-  CAN->sFilterRegister[index].FR1 = bank1;    // Set filter bank registers1
-  CAN->sFilterRegister[index].FR2 = bank2;    // Set filter bank registers2
+  CAN->sFilterRegister[item.index].FR1 = item.bank1;    // Set filter bank registers1
+  CAN->sFilterRegister[item.index].FR2 = item.bank2;    // Set filter bank registers2
 
   CAN->FA1R |= bit;                   // Activate filter
+}
+
+
+void STM32_CAN::setFilters(CAN_filter_t *filters, int count)
+{
+  _filters = filters;
+  _filter_count = count;
+
+  // This allows us to setup the filters before we call begin()
+  if (_initialized) {
+    updateFilters();
+  }
+}
+
+void STM32_CAN::updateFilters(void)
+{
+  // This will only run once the controller is configured to the point where it's
+  // ready for filters.
+
+  if (!_filters || !_filter_count) {
+    _filters = default_filters;
+    _filter_count = default_filter_count;
+  }
+
+  CAN->FMR |= 0x1;                    // Set to filter initialization mode
+  CAN->FA1R = 0;                      // Disable any old filters
+
+  CAN_filter_t *item = _filters;
+  for (int i = 0; i < _filter_count && i < 14; i++, item++) {
+    setFilter(*item);
+  }
+
+  CAN->FMR &= ~(0x1);                 // Deactivate initialization mode
 }
 
     
@@ -152,25 +192,16 @@ bool STM32_CAN::begin(BITRATE bitrate)
   CAN->MCR = 0x41;                     // Hardware initialization (With automatic retransmission)
 
   // Set bit rates 
-  //CAN1->BTR &= ~(((0x03) << 24) | ((0x07) << 20) | ((0x0F) << 16) | (0x1FF)); 
-  //CAN1->BTR |=  (((can_configs[bitrate].TS2-1) & 0x07) << 20) | (((can_configs[bitrate].TS1-1) & 0x0F) << 16) | ((can_configs[bitrate].BRP-1) & 0x1FF);
   CAN->BTR &= ~(((0x03) << 24) | ((0x07) << 20) | ((0x0F) << 16) | (0x3FF)); 
   CAN->BTR |=  (((can_configs[bitrate].TS2 - 1) & 0x07) << 20) | 
                (((can_configs[bitrate].TS1 - 1) & 0x0F) << 16) | 
                ((can_configs[bitrate].BRP - 1) & 0x3FF);
   printRegister("CAN->BTR=", CAN->BTR);
-      
-  // Configure Filters to default values
-  CAN->FMR  |= 0x1;                    // Set to filter initialization mode
 
-  // Set filter 0
-  // Single 32-bit scale configuration 
-  // Two 32-bit registers of filter bank x are in Identifier Mask mode
-  // Filter assigned to FIFO 0 
-  // Filter bank register to all 0
-  setFilter(0, 1, 0, 0, 0x00, 0x00); 
+  _initialized = true;
 
-  CAN->FMR   &= ~(0x1);              // Deactivate initialization mode
+  // Configure Filters (use defaults if not already set)
+  updateFilters();
 
   uint16_t TimeoutMilliseconds = 1000;
   bool can1 = false;
@@ -276,17 +307,7 @@ inline uint32_t STM32_CAN::__bswap32(uint32_t x)
  */
 bool STM32_CAN::send(CAN_msg_t* CAN_tx_msg)
 {
-  uint32_t out = 0;
-  if (CAN_tx_msg->format == EXTENDED_FORMAT) { // Extended frame format
-      out = ((CAN_tx_msg->id & CAN_EXT_ID_MASK) << 3) | STM32_CAN_TIR_IDE;
-  } else {                                  // Standard frame format
-      out = ((CAN_tx_msg->id & CAN_STD_ID_MASK) << 21);
-  }
-
-  // Remote frame
-  if (CAN_tx_msg->type == REMOTE_FRAME) {
-      out |= STM32_CAN_TIR_RTR;
-  }
+  uint32_t out = makeFilter32(CAN_tx_msg->id, CAN_tx_msg->format, CAN_tx_msg->type);
 
   // Wait until a mailbox is empty
   int mailbox;
