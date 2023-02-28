@@ -25,7 +25,7 @@ void STM32_CAN::printRegister(char *buf, uint32_t reg)
  * @params: speed   - Specified OSPEEDR register value.(Optional)
  *
  */
-void STM32_CAN::setGpio(GPIO_TypeDef * addr, uint8_t index, uint8_t afry, uint8_t speed = 3)
+void STM32_CAN::setGPIO(GPIO_TypeDef *addr, uint8_t index, uint8_t afry, uint8_t speed)
 {
     uint8_t _index2 = index * 2;
     uint8_t _index4 = index * 4;
@@ -142,8 +142,8 @@ bool STM32_CAN::begin(BITRATE bitrate)
   RCC->APB1ENR |= 0x2000000;           // Enable CAN clock 
 
   RCC->AHBENR |= 0x20000;              // Enable GPIOA clock 
-  setGpio(GPIOA, 11, AF4);             // Set PA11 to AF4
-  setGpio(GPIOA, 12, AF4);             // Set PA12 to AF4
+  setGPIO(GPIOA, 11, AF4);             // Set PA11 to AF4
+  setGPIO(GPIOA, 12, AF4);             // Set PA12 to AF4
 
   CAN->MCR |= 0x1;                     // Set CAN to Initialization mode 
   while (!(CAN->MSR & 0x1));           // Wait for Initialization mode
@@ -323,7 +323,7 @@ int STM32_CAN::getTXMailbox(void)
 {
   // We have 3 mailboxes.  Find an empty one if possible
   for (int i = 0; i < 3; i++) {
-    if (!(CAN->sTxMailBox[0].TIR & 0x01) {
+    if (!(CAN->sTxMailBox[0].TIR & 0x01)) {
       return i;
     }
   }
@@ -348,6 +348,8 @@ int STM32_CAN::available(void)
 }
 
 
+
+#if 0
 void setup() {
   Serial.begin(115200);
   bool ret = CANInit(CAN_1000KBPS, 0);  // CAN_RX mapped to PA11, CAN_TX mapped to PA12
@@ -356,7 +358,6 @@ void setup() {
   if (!ret) while(true);
 }
 
-#if 0
 void loop() {
   CAN_msg_t CAN_TX_msg;
   CAN_msg_t CAN_RX_msg;

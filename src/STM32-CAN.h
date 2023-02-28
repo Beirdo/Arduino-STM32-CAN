@@ -42,10 +42,10 @@ typedef const struct
 
 class STM32_CAN {
   public:
-    STM32_CAN(void);
+    STM32_CAN(void) {};
 
     bool begin(BITRATE bitrate);
-    void setGPIO(GPIO_TypeDef *addr, uint8_t *index, uint8_t afry, uint8_t speed = 3);
+    void setGPIO(GPIO_TypeDef *addr, uint8_t index, uint8_t afry, uint8_t speed = 3);
     void setFilter(uint8_t index, uint8_t scale, uint8_t mode, uint8_t fifo, uint32_t bank1, uint32_t bank2);
     bool receive(CAN_msg_t* CAN_rx_msg);
     bool send(CAN_msg_t* CAN_tx_msg);
