@@ -3,7 +3,6 @@
 
 // #define DEBUG_STM32_CAN
 #define AF4   0x04
-#define AF0   0x00
 
 /* Symbolic names for bit rate of CAN message                                */
 typedef enum {CAN_50KBPS, CAN_100KBPS, CAN_125KBPS, CAN_250KBPS, CAN_500KBPS, CAN_1000KBPS} BITRATE;
@@ -31,8 +30,6 @@ typedef const struct
   uint8_t BRP;
 } CAN_bit_timing_config_t;
 
-CAN_bit_timing_config_t can_configs[6] = {{2, 13, 60}, {2, 13, 30}, {2, 13, 24}, {2, 13, 12}, {2, 13, 6}, {2, 13, 3}};
-
 #define STM32_CAN_TIR_TXRQ              (1U << 0U)  // Bit 0: Transmit Mailbox Request
 #define STM32_CAN_RIR_RTR               (1U << 1U)  // Bit 1: Remote Transmission Request
 #define STM32_CAN_RIR_IDE               (1U << 2U)  // Bit 2: Identifier Extension
@@ -41,9 +38,24 @@ CAN_bit_timing_config_t can_configs[6] = {{2, 13, 60}, {2, 13, 30}, {2, 13, 24},
 
 #define CAN_EXT_ID_MASK                 0x1FFFFFFFU
 #define CAN_STD_ID_MASK                 0x000007FFU
- 
 
-void printRegister(char * buf, uint32_t reg);
 
+class STM32_CAN {
+  public:
+    STM32_CAN(void);
+
+    bool begin(BITRATE bitrate);
+    void setGPIO(GPIO_TypeDef *addr, uint8_t *index, uint8_t afry, uint8_t speed = 3);
+    void setFilter(uint8_t index, uint8_t scale, uint8_t mode, uint8_t fifo, uint32_t bank1, uint32_t bank2);
+    bool receive(CAN_msg_t* CAN_rx_msg);
+    bool send(CAN_msg_t* CAN_tx_msg);
+    int available(void);
+    void printRegister(char * buf, uint32_t reg);
+
+  protected:
+    int getTXMailbox(void);
+    int getRXMailbox(void);
+    inline uint32_t __bswap32(uint32_t x);
+};
 
 #endif
