@@ -24,7 +24,7 @@ int default_filter_count = sizeof(default_filters) / sizeof(default_filters[0]);
 /**
  * Print registers.
 */ 
-void STM32_CAN::printRegister(char *buf, uint32_t reg)
+void STM32_CAN::printRegister(const char *buf, uint32_t reg)
 {
 #ifdef DEBUG_STM32_CAN
   Serial.print(buf);

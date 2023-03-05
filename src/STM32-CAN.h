@@ -88,7 +88,7 @@ class STM32_CAN {
     bool receive(CAN_msg_t* CAN_rx_msg);
     bool send(CAN_msg_t* CAN_tx_msg);
     int available(void);
-    void printRegister(char * buf, uint32_t reg);
+    void printRegister(const char * buf, uint32_t reg);
     static uint32_t makeFilter32(uint32_t id, uint8_t format, uint8_t type)
     {
       uint32_t out;
