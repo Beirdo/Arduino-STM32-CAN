@@ -81,9 +81,9 @@ typedef struct
 
 class STM32_CAN {
   public:
-    STM32_CAN(void) : _initialized(false), _filters(0), _filter_count(0) {};
+    STM32_CAN(void) : _initialized(false), _filters(0), _filter_count(0), _serial(0) {};
 
-    bool begin(BITRATE bitrate);
+    bool begin(HardwareSerial *serial, BITRATE bitrate);
     void setFilters(CAN_filter_t *filters, int count);
     bool receive(CAN_msg_t* CAN_rx_msg);
     bool send(CAN_msg_t* CAN_tx_msg);
@@ -136,6 +136,7 @@ class STM32_CAN {
     bool _initialized;
     CAN_filter_t *_filters;
     int _filter_count;
+    HardwareSerial *_serial;
 };
 
 #endif

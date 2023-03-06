@@ -27,10 +27,12 @@ int default_filter_count = sizeof(default_filters) / sizeof(default_filters[0]);
 void STM32_CAN::printRegister(const char *buf, uint32_t reg)
 {
 #ifdef DEBUG_STM32_CAN
-  Serial.print(buf);
-  Serial.print("0x");
-  Serial.print(reg, HEX);
-  Serial.println();
+  if (_serial) {
+    _serial->print(buf);
+    _serial->print("0x");
+    _serial->print(reg, HEX);
+    _serial->println();
+  }
 #endif
 }
 
@@ -174,8 +176,10 @@ void STM32_CAN::updateFilters(void)
  * @params: bitrate - Specified bitrate. If this value is not one of the defined constants, bit rate will be defaulted to 125KBS
  *
  */
-bool STM32_CAN::begin(BITRATE bitrate)
+bool STM32_CAN::begin(HardwareSerial *serial, BITRATE bitrate)
 {
+  _serial = serial;
+
   // Reference manual
   // https://www.st.com/resource/en/reference_manual/dm00031936-stm32f0x1stm32f0x2stm32f0x8-advanced-armbased-32bit-mcus-stmicroelectronics.pdf
 
@@ -217,11 +221,13 @@ bool STM32_CAN::begin(BITRATE bitrate)
     delayMicroseconds(1000);
   }
 
-  if (can1) {
-    Serial.println("CAN1 initialize ok");
-  } else {
-    Serial.println("CAN1 initialize fail!!");
-    return false;
+  if (_serial) {
+    if (can1) {
+      _serial->println("CAN1 initialize ok");
+    } else {
+      _serial->println("CAN1 initialize fail!!");
+      return false;
+    }
   }
   return true; 
 }
@@ -316,10 +322,12 @@ bool STM32_CAN::send(CAN_msg_t* CAN_tx_msg)
   
   if (mailbox == -1) {
     // Timeout.  Something's borked.
-    Serial.println("Send Fail");
-    Serial.println(CAN->ESR);
-    Serial.println(CAN->MSR);
-    Serial.println(CAN->TSR);
+    if (_serial) {
+      _serial->println("Send Fail");
+      _serial->println(CAN->ESR);
+      _serial->println(CAN->MSR);
+      _serial->println(CAN->TSR);
+    }
     return false;
   }
 
@@ -367,7 +375,6 @@ int STM32_CAN::available(void)
   count += CAN->RF1R & 0x03;
   return count;
 }
-
 
 
 #if 0
